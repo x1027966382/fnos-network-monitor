@@ -1,0 +1,5 @@
+{
+  "run-as": "root",
+  "run-as-root": true,
+  "allow-privesc": true
+}

@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FnOS Network Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            color: #00d4ff;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #a0a0a0;
+            font-size: 1.1em;
+        }
+        
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+        
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1000px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-title {
+            color: #00d4ff;
+            font-size: 1.3em;
+            font-weight: bold;
+        }
+        
+        .refresh-btn {
+            background: #00d4ff;
+            color: #1a1a2e;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        
+        .refresh-btn:hover {
+            background: #00b8d9;
+            transform: translateY(-2px);
+        }
+        
+        .table-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            padding: 12px;
+            text-align: left;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+        
+        .status-established {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+        
+        .status-listen {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196f3;
+        }
+        
+        .status-time-wait {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+        
+        .status-other {
+            background: rgba(158, 158, 158, 0.2);
+            color: #9e9e9e;
+        }
+        
+        .protocol-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+        }
+        
+        .process-name {
+            color: #ff9800;
+            font-weight: 500;
+        }
+        
+        .process-cmd {
+            color: #a0a0a0;
+            font-size: 0.9em;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #a0a0a0;
+        }
+        
+        .error {
+            color: #f44336;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #a0a0a0;
+            font-style: italic;
+        }
+        
+        .filter-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .filter-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+            font-size: 0.9em;
+        }
+        
+        .filter-input::placeholder {
+            color: #a0a0a0;
+        }
+        
+        .filter-select {
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #e0e0e0;
+            font-size: 0.9em;
+        }
+        
+        .last-update {
+            text-align: center;
+            color: #a0a0a0;
+            font-size: 0.9em;
+            margin-top: 10px;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #a0a0a0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ FnOS Network Monitor</h1>
+            <p class="subtitle">实时网络连接监控 - 类似 RustNet 的网络监控工具</p>
+        </header>
+        
+        <div class="stats-container">
+            <div class="stat-card">
+                <div class="stat-value" id="active-connections">0</div>
+                <div class="stat-label">活跃连接</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="total-processes">0</div>
+                <div class="stat-label">监控进程</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="tcp-connections">0</div>
+                <div class="stat-label">TCP 连接</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="udp-connections">0</div>
+                <div class="stat-label">UDP 连接</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">🔗 网络连接</h2>
+                    <button class="refresh-btn" onclick="refreshConnections()">刷新</button>
+                </div>
+                
+                <div class="filter-container">
+                    <input type="text" class="filter-input" id="connection-filter" placeholder="筛选连接 (IP、端口、进程名...)" oninput="filterConnections()">
+                    <select class="filter-select" id="protocol-filter" onchange="filterConnections()">
+                        <option value="">所有协议</option>
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                    </select>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>本地地址</th>
+                                <th>远程地址</th>
+                                <th>状态</th>
+                                <th>协议</th>
+                                <th>进程</th>
+                            </tr>
+                        </thead>
+                        <tbody id="connections-table">
+                            <tr>
+                                <td colspan="5" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">📊 进程监控</h2>
+                    <button class="refresh-btn" onclick="refreshProcesses()">刷新</button>
+                </div>
+                
+                <div class="filter-container">
+                    <input type="text" class="filter-input" id="process-filter" placeholder="筛选进程 (名称、PID...)" oninput="filterProcesses()">
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>PID</th>
+                                <th>进程名</th>
+                                <th>连接数</th>
+                                <th>命令行</th>
+                            </tr>
+                        </thead>
+                        <tbody id="processes-table">
+                            <tr>
+                                <td colspan="4" class="loading">加载中...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <div class="last-update">
+            最后更新: <span id="last-update-time">--</span>
+        </div>
+        
+        <div class="footer">
+            <p>FnOS Network Monitor v1.0 - 基于 RustNet 理念设计</p>
+            <p>提供实时网络连接监控、进程追踪和深度包检测功能</p>
+        </div>
+    </div>
+
+    <script>
+        let connections = [];
+        let processes = [];
+        let filteredConnections = [];
+        let filteredProcesses = [];
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshAll();
+            // 每5秒自动刷新
+            setInterval(refreshAll, 5000);
+        });
+        
+        // 刷新所有数据
+        function refreshAll() {
+            refreshConnections();
+            refreshProcesses();
+            refreshStats();
+        }
+        
+        // 刷新连接数据
+        async function refreshConnections() {
+            try {
+                const response = await fetch('/api/connections');
+                if (!response.ok) throw new Error('获取连接数据失败');
+                
+                connections = await response.json();
+                filterConnections();
+                
+                document.getElementById('last-update-time').textContent = new Date().toLocaleString('zh-CN');
+            } catch (error) {
+                console.error('刷新连接数据失败:', error);
+                document.getElementById('connections-table').innerHTML = 
+                    '<tr><td colspan="5" class="error">加载失败: ' + error.message + '</td></tr>';
+            }
+        }
+        
+        // 刷新进程数据
+        async function refreshProcesses() {
+            try {
+                const response = await fetch('/api/processes');
+                if (!response.ok) throw new Error('获取进程数据失败');
+                
+                processes = await response.json();
+                filterProcesses();
+            } catch (error) {
+                console.error('刷新进程数据失败:', error);
+                document.getElementById('processes-table').innerHTML = 
+                    '<tr><td colspan="4" class="error">加载失败: ' + error.message + '</td></tr>';
+            }
+        }
+        
+        // 刷新统计信息
+        async function refreshStats() {
+            try {
+                const response = await fetch('/api/stats');
+                if (!response.ok) throw new Error('获取统计信息失败');
+                
+                const stats = await response.json();
+                document.getElementById('active-connections').textContent = stats.active_connections || 0;
+                document.getElementById('total-processes').textContent = Object.keys(stats.processes || {}).length;
+                document.getElementById('tcp-connections').textContent = stats.protocols?.tcp || 0;
+                document.getElementById('udp-connections').textContent = stats.protocols?.udp || 0;
+            } catch (error) {
+                console.error('刷新统计信息失败:', error);
+            }
+        }
+        
+        // 筛选连接
+        function filterConnections() {
+            const filterText = document.getElementById('connection-filter').value.toLowerCase();
+            const protocolFilter = document.getElementById('protocol-filter').value;
+            
+            filteredConnections = connections.filter(conn => {
+                const matchesText = !filterText || 
+                    (conn.local_address && conn.local_address.toLowerCase().includes(filterText)) ||
+                    (conn.remote_address && conn.remote_address.toLowerCase().includes(filterText)) ||
+                    (conn.state && conn.state.toLowerCase().includes(filterText)) ||
+                    (conn.protocol && conn.protocol.toLowerCase().includes(filterText));
+                
+                const matchesProtocol = !protocolFilter || conn.protocol === protocolFilter;
+                
+                return matchesText && matchesProtocol;
+            });
+            
+            renderConnections();
+        }
+        
+        // 筛选进程
+        function filterProcesses() {
+            const filterText = document.getElementById('process-filter').value.toLowerCase();
+            
+            filteredProcesses = processes.filter(proc => {
+                return !filterText || 
+                    (proc.name && proc.name.toLowerCase().includes(filterText)) ||
+                    (proc.pid && proc.pid.toString().includes(filterText)) ||
+                    (proc.cmdline && proc.cmdline.toLowerCase().includes(filterText));
+            });
+            
+            renderProcesses();
+        }
+        
+        // 渲染连接表格
+        function renderConnections() {
+            const tbody = document.getElementById('connections-table');
+            
+            if (filteredConnections.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-data">暂无连接数据</td></tr>';
+                return;
+            }
+            
+            // 限制显示数量
+            const displayConnections = filteredConnections.slice(0, 100);
+            
+            tbody.innerHTML = displayConnections.map(conn => `
+                <tr>
+                    <td>${escapeHtml(conn.local_address || '-')}</td>
+                    <td>${escapeHtml(conn.remote_address || '-')}</td>
+                    <td><span class="status ${getStatusClass(conn.state)}">${escapeHtml(conn.state || '-')}</span></td>
+                    <td><span class="protocol-badge">${escapeHtml(conn.protocol || '-')}</span></td>
+                    <td class="process-name">${escapeHtml(conn.process || 'PID-' + (conn.pid || '-'))}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // 渲染进程表格
+        function renderProcesses() {
+            const tbody = document.getElementById('processes-table');
+            
+            if (filteredProcesses.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="no-data">暂无进程数据</td></tr>';
+                return;
+            }
+            
+            // 按连接数排序
+            const sortedProcesses = [...filteredProcesses].sort((a, b) => (b.connections || 0) - (a.connections || 0));
+            const displayProcesses = sortedProcesses.slice(0, 50);
+            
+            tbody.innerHTML = displayProcesses.map(proc => `
+                <tr>
+                    <td>${escapeHtml(proc.pid || '-')}</td>
+                    <td class="process-name">${escapeHtml(proc.name || '-')}</td>
+                    <td>${escapeHtml(proc.connections || 0)}</td>
+                    <td class="process-cmd" title="${escapeHtml(proc.cmdline || '')}">${escapeHtml(proc.cmdline || '-')}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // 获取状态样式类
+        function getStatusClass(state) {
+            if (!state) return 'status-other';
+            
+            if (state === 'ESTABLISHED') return 'status-established';
+            if (state === 'LISTEN') return 'status-listen';
+            if (state === 'TIME_WAIT') return 'status-time-wait';
+            
+            return 'status-other';
+        }
+        
+        // HTML转义
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

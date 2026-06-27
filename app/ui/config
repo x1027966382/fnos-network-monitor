@@ -1,0 +1,7 @@
+{
+  "name": "Network Monitor",
+  "icon": "https://raw.githubusercontent.com/domcyrus/rustnet/main/assets/icon.png",
+  "url": "http://localhost:8180",
+  "type": "web",
+  "description": "实时网络连接监控工具"
+}

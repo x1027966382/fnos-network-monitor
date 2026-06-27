@@ -1,0 +1,9 @@
+app_id=com.dustinky.fnos-network-monitor
+app_name=Network Monitor
+app_version=1.0.0
+app_author=dustinky
+app_description=类似 RustNet 的实时网络连接监控工具，提供进程网络使用追踪、深度包检测等功能
+app_icon=https://raw.githubusercontent.com/domcyrus/rustnet/main/assets/icon.png
+app_size=1024
+app_arch=x86_64
+app_arch=aarch64

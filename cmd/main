@@ -1,0 +1,129 @@
+#!/bin/bash
+# FnOS Network Monitor - 生命周期脚本
+# 处理 install/start/stop/uninstall/status 操作
+
+APP_DIR="/opt/fnos-rustnet"
+DATA_DIR="/var/lib/fnos-rustnet"
+LOG_DIR="/var/log/fnos-rustnet"
+PID_FILE="/var/run/fnos-network-monitor.pid"
+PORT=8180
+
+# 日志函数
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_DIR/install.log"
+    echo "$1"
+}
+
+# 安装函数
+install() {
+    log "开始安装 Network Monitor..."
+    
+    # 创建必要的目录
+    mkdir -p "$DATA_DIR"
+    mkdir -p "$LOG_DIR"
+    
+    # 安装依赖
+    log "安装 Python 依赖..."
+    cd "$APP_DIR/app"
+    pip3 install -r requirements.txt --quiet 2>> "$LOG_DIR/install.log"
+    
+    # 设置权限
+    chmod +x "$APP_DIR/app/network_monitor.py"
+    chmod +x "$cmd/main"
+    
+    log "Network Monitor 安装完成"
+}
+
+# 启动函数
+start() {
+    log "启动 Network Monitor..."
+    
+    # 检查是否已运行
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            log "Network Monitor 已在运行 (PID: $PID)"
+            return 0
+        fi
+    fi
+    
+    # 启动服务
+    cd "$APP_DIR/app"
+    nohup python3 network_monitor.py --port $PORT > "$LOG_DIR/network-monitor.log" 2>&1 &
+    echo $! > "$PID_FILE"
+    
+    log "Network Monitor 启动成功 (PID: $!)"
+    log "Web 界面: http://$(hostname -I | awk '{print $1}'):$PORT"
+}
+
+# 停止函数
+stop() {
+    log "停止 Network Monitor..."
+    
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            kill "$PID"
+            rm -f "$PID_FILE"
+            log "Network Monitor 已停止"
+        else
+            log "Network Monitor 未运行"
+            rm -f "$PID_FILE"
+        fi
+    else
+        log "Network Monitor 未运行"
+    fi
+}
+
+# 状态查询函数
+status() {
+    if [ -f "$PID_FILE" ]; then
+        PID=$(cat "$PID_FILE")
+        if ps -p "$PID" > /dev/null 2>&1; then
+            echo "running"
+            return 0
+        fi
+    fi
+    echo "stopped"
+    return 1
+}
+
+# 卸载函数
+uninstall() {
+    log "卸载 Network Monitor..."
+    
+    # 停止服务
+    stop
+    
+    # 清理文件
+    rm -rf "$DATA_DIR"
+    rm -rf "$LOG_DIR"
+    rm -f "$PID_FILE"
+    
+    log "Network Monitor 卸载完成"
+}
+
+# 主逻辑
+case "$1" in
+    install)
+        install
+        ;;
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    status)
+        status
+        ;;
+    uninstall)
+        uninstall
+        ;;
+    *)
+        echo "用法: $0 {install|start|stop|status|uninstall}"
+        exit 1
+        ;;
+esac
+
+exit 0
